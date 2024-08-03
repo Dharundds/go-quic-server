@@ -66,7 +66,7 @@ func httpHandler(w http.ResponseWriter, r *http.Request){
 
 
 func handleGet(w http.ResponseWriter, r *http.Request){
-	log.Printf("Got GET request %v",r)
+	log.Printf("Got GET request %v",r.Proto)
 	w.Write([]byte("GET request received"))
 }
 

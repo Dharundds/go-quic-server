@@ -11,7 +11,7 @@ import (
 
 
 const addr = "localhost:5000"
-func main() {
+func client() {
 	tlsConf := &tls.Config{
 		InsecureSkipVerify: true,
 	}
