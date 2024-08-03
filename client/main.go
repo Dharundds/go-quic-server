@@ -21,7 +21,7 @@ func main(){
 		Transport: transport,
 	}
 
-	resp, err := client.Get("https://localhost:5000")
+	resp, err := client.Get("https://localhost:5000/")
 	if err !=nil {
 		log.Fatalf("Error while Get Method %v",err)
 	}
