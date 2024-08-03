@@ -1,82 +1,85 @@
 package main
 
 import (
-	"context"
 	"crypto/tls"
 	"log"
+	"net/http"
 	"os"
-	"os/exec"
 
 	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 )
 
-const addr = "localhost:5000"
-const message = "Hello from server"
+func main(){
+	tlsConfig := loadTlsCertificate()
 
-func main() {
-	tlsConf := generateTLSConfig()
-	if tlsConf == nil {
-		log.Fatal("Error in listening at address, failed to read TLS config")
-		return
+	server := &http3.Server{
+		Addr: "localhost:5000",
+		TLSConfig: tlsConfig,
+		Handler: http.HandlerFunc(httpHandler),
 	}
 
-	listener, err := quic.ListenAddr(addr, tlsConf, nil)
-	if err != nil {
-		log.Fatalf("Error in listening at address: %v", err)
-		return
+	log.Printf("Http/3 Server listening on %s", "localhost:5000")
+
+	err := server.ListenAndServeTLS("certificate.crt","key.pem")
+	if err != nil{
+		log.Fatalf("Error in serving http3 server %v",err)
+	}
+}
+func loadTlsCertificate() *tls.Config {
+	certFile,pemFile := "certificate.crt","key.pem"
+	_, err:= os.Stat(certFile)
+	if os.IsNotExist(err){
+		log.Fatalf("Certificate file not found %v",err)
+	}
+	cert, err := tls.LoadX509KeyPair(certFile,pemFile)
+
+	if err != nil{
+		log.Fatalf("Error while loading certificates %v",err)
 	}
 
-	log.Printf("QUIC Server listening on %s", addr)
-
-	for {
-		conn, err := listener.Accept(context.Background())
-		if err != nil {
-			log.Fatalf("Error in accepting connections: %v", err)
-		}
-		log.Println("Inside Accept")
-
-		go handleConnSession(conn)
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
 	}
 }
 
-func handleConnSession(session quic.Connection) {
-	stream, err := session.AcceptStream(context.Background())
-	if err != nil {
-		log.Fatalf("Failed to accept stream: %v", err)
-	}
-	defer stream.Close()
 
-	buf := make([]byte, 1024)
-	n, err := stream.Read(buf)
-	if err != nil {
-		log.Fatalf("Failed to read from stream: %v", err)
+func httpHandler(w http.ResponseWriter, r *http.Request){
+
+	if conn, ok:= r.Context().Value(http3.ServerContextKey).(quic.Connection); ok{
+		log.Printf("Connection ID %s",conn.ConnectionState().Version)
+	}else{
+		log.Println()
 	}
 
-	log.Printf("Received message: %s", string(buf[:n]))
-	copy(buf[:],[]byte(message))
-	_, err = stream.Write(buf[:n])
-	if err != nil {
-		log.Fatalf("Failed to write from stream: %v", err)
+
+	switch r.Method{
+	case http.MethodGet:
+		handleGet(w,r)
+	case http.MethodPost:
+		handlePost(w,r)
+	default:
+		log.Fatal("Method not Allowed")
 	}
 }
 
-func generateTLSConfig() *tls.Config {
-	certFile, keyFile := "certificate.crt", "key.pem"
-	_, err := os.Stat(certFile)
-	if os.IsNotExist(err) {
-		genCert(certFile, keyFile)
-	}
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		log.Fatalf("Failed to load key pair: %v", err)
-	}
-	return &tls.Config{Certificates: []tls.Certificate{cert}}
+
+
+func handleGet(w http.ResponseWriter, r *http.Request){
+	log.Printf("Got GET request %v",r)
+	w.Write([]byte("GET request received"))
 }
 
-func genCert(certFile, keyFile string) {
-	cmd := exec.Command("openssl", "req", "-x509", "-newkey", "rsa:2048", "-keyout", keyFile, "-out", certFile, "-days", "365", "-nodes", "-subj", "/CN=localhost")
-	err := cmd.Run()
+func handlePost(w http.ResponseWriter, r *http.Request){
+	log.Printf("Got POST request %v",r)
+	buf := make([]byte,1024)
+	n, err:= r.Body.Read(buf)
+
 	if err != nil {
-		log.Fatalf("Failed to generate certificate: %v", err)
+		log.Fatalf("Error in Reading post body %v",err)
 	}
+	log.Default().Printf("Recived message %s",string(buf[:n]))
+	w.Write([]byte("POST received your data"))
 }
+
+
