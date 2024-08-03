@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+aioquic = "*"
+dnslib = "*"
+jinja2 = "*"
+starlette = "*"
+wsproto = "*"
+uvloop = "*"
+fastapi = "*"
+httpx = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"
