@@ -1,10 +1,12 @@
 package main
 
 import (
+	"crypto/tls"
+	"io"
 	"log"
 	"net/http"
 
-	"github.com/Dharundds/go-quic-server/helpers"
+	// "github.com/Dharundds/go-quic-server/helpers"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 )
@@ -21,8 +23,9 @@ func main(){
 	server := http3.Server{
 		Addr: "localhost:5000",
 		Handler: mux,
-		TLSConfig: helpers.GenerateTLSConfig(),
+		TLSConfig: &tls.Config{NextProtos: []string{"h3"}},
 		QUICConfig: &quic.Config{Allow0RTT: true},
+
 	}
 	// err := http3.ListenAndServeQUIC(
 	// 	":5000",
@@ -30,7 +33,7 @@ func main(){
 	// 	"key.pem",
 	// 	mux,
 	// )
-	log.Fatal(server.ListenAndServeTLS("",""))
+	log.Fatal(server.ListenAndServeTLS("certificate.crt","key.pem"))
 
 	// if err != nil{
 	// 	log.Fatalf("Error in serving http3 server %v",err)
@@ -46,20 +49,19 @@ func homeHandler(w http.ResponseWriter, r *http.Request){
 }
 
 func otherHandler(w http.ResponseWriter, r *http.Request){
-	if r.Method == http.MethodPost{
-		log.Printf("Got POST request %v",r)
-		buf := make([]byte,1024)
-		n, err:= r.Body.Read(buf)
+	
+	log.Printf("Got POST request %v",r.TLS.HandshakeComplete)
+	reqBody, err := io.ReadAll(r.Body)
 
-		if err != nil {
-			log.Fatalf("Error in Reading post body %v",err)
-		}
-		log.Default().Printf("Recived message %s",string(buf[:n]))
-		w.Write([]byte("POST received your data"))
-	} else{
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte("/others only accepts POST"))
+	if err !=nil {
+		log.Fatalf("Error while Reading Get response %v",err)
 	}
+
+	log.Printf("The response %s",string(reqBody))
+
+	
+	w.Write([]byte("POST received your data"))
+	
 
 }
 
