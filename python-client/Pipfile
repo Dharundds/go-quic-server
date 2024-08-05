@@ -12,6 +12,7 @@ wsproto = "*"
 uvloop = "*"
 fastapi = "*"
 httpx = "*"
+loguru = "*"
 
 [dev-packages]
 
