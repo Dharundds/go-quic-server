@@ -16,6 +16,7 @@ from aioquic.h3.connection import H3_ALPN, H3Connection
 from aioquic.h3.events import DataReceived, H3Event, Headers, HeadersReceived
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.events import QuicEvent
+from aioquic.quic.packet import QuicProtocolVersion
 from aioquic.quic.logger import QuicFileLogger
 
 logger = logging.getLogger("client")
@@ -173,6 +174,7 @@ async def main(
         configuration=configuration,
         create_protocol=H3Transport,
         session_ticket_handler=save_session_ticket,
+        wait_connected=False
     ) as transport:
         async with httpx.AsyncClient(
             transport=cast(httpx.AsyncBaseTransport, transport)
@@ -287,7 +289,11 @@ if __name__ == "__main__":
                 configuration.session_ticket = pickle.load(fp)
         except FileNotFoundError:
             pass
-
+    configuration.original_version = QuicProtocolVersion.VERSION_2
+    configuration.supported_versions = [
+        QuicProtocolVersion.VERSION_2,
+        QuicProtocolVersion.VERSION_1,
+    ]
     asyncio.run(
         main(
             configuration=configuration,
