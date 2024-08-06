@@ -150,21 +150,13 @@ def save_session_ticket(ticket):
     #         pickle.dump(ticket, fp)
 
 
-async def main(
+async def send_request(
+    host: str,
+    port: str,
     configuration: QuicConfiguration,
-    url: str,
     data: Optional[str],
     zero_rtt: bool = True,
-) -> None:
-    # parse URL
-    parsed = urlparse(url)
-    assert parsed.scheme == "https", "Only https:// URLs are supported."
-    host = parsed.hostname
-    if parsed.port is not None:
-        port = parsed.port
-    else:
-        port = 443
-    log.info("Starting to establish QUIC connection")
+):
     async with connect(
         host,
         port,
@@ -174,7 +166,7 @@ async def main(
         wait_connected=not zero_rtt,
     ) as transport:
         log.info(transport.wait_connected)
-        log.info(f"Established QUIC connection with 0RTT {"Enabled" if not transport.wait_connected else "Disabled"}")
+        # log.info(f"Established QUIC connection with 0RTT {"Enabled" if not transport.wait_connected else "Disabled"}")
         async with httpx.AsyncClient(
             transport=cast(httpx.AsyncBaseTransport, transport)
         ) as client:
@@ -188,7 +180,7 @@ async def main(
                 )
             else:
                 response = await client.get(url)
-            
+
             elapsed = time.time() - start
             log.success(response)
         # print speed
@@ -197,6 +189,40 @@ async def main(
             "Received %d bytes in %.1f s (%.3f Mbps)"
             % (octets, elapsed, octets * 8 / elapsed / 1000000)
         )
+
+
+async def main(
+    configuration: QuicConfiguration,
+    url: str,
+    data: Optional[str],
+    zero_rtt: bool = True,
+    task_count: int = 1,
+) -> None:
+    # parse URL
+    parsed = urlparse(url)
+    assert parsed.scheme == "https", "Only https:// URLs are supported."
+    host = parsed.hostname
+    if parsed.port is not None:
+        port = parsed.port
+    else:
+        port = 443
+
+    await asyncio.wait(
+        [
+            asyncio.create_task(
+                send_request(
+                    host=host,
+                    port=port,
+                    configuration=configuration,
+                    data=data,
+                    zero_rtt=zero_rtt,
+                )
+            )
+            for _ in range(task_count)
+        ]
+    )
+
+    log.info("Starting to establish QUIC connection")
 
 
 if __name__ == "__main__":
@@ -228,7 +254,7 @@ if __name__ == "__main__":
                     data=None,
                     zero_rtt=zero_rtt,
                 )
-            )   
+            )
     except KeyboardInterrupt as e:
         runner.close()
         log.info("Shutting down")

@@ -24,7 +24,7 @@ func main() {
 		Addr:       "127.0.0.1:5000",
 		Handler:    mux,
 		TLSConfig:  http3.ConfigureTLSConfig(&tls.Config{NextProtos: []string{"h3"}}),
-		QUICConfig: &quic.Config{},
+		QUICConfig: &quic.Config{Allow0RTT: true},
 	}
 	// err := http3.ListenAndServeQUIC(
 	// 	":5000",
