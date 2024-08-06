@@ -4,6 +4,7 @@ import os
 import pickle
 import ssl
 import time
+import json
 from collections import deque
 from typing import AsyncIterator, Deque, Dict, Optional, Tuple, cast
 from urllib.parse import urlparse
@@ -191,9 +192,16 @@ async def send_request(
             "Received %d bytes in %.5f s (%.3f Mbps)"
             % (octets, elapsed, octets * 8 / elapsed / 1000000)
         )
+        response_data = None
+        try:
+            response_data = json.loads(response.content)
+            if response_data:
+                log.info(f"Received Response data --> \n{json.dumps(response_data,indent=4)}")
+        except Exception as e:
+            pass
 
 
-async def main(
+async def main( 
     configuration: QuicConfiguration,
     url: str,
     data: Optional[str],
@@ -240,20 +248,26 @@ if __name__ == "__main__":
             QuicProtocolVersion.VERSION_2,
             QuicProtocolVersion.VERSION_1,
         ]
-        url: str = "https://localhost:5000/"
-        zero_rtt: bool = True
         try:
             with open("./session_ticket", "rb") as fp:
                 configuration.session_ticket = pickle.load(fp)
                 log.debug(f"Using existing session ticket for --> server_name : {configuration.session_ticket.server_name} , expiry_date : {configuration.session_ticket.not_valid_after}")
         except FileNotFoundError:
             pass
+
+
+        url: str = "https://localhost:5000/tasks"
+        zero_rtt: bool = True
+        data = None
+        # data = "Implement postgres"
+
+        
         with asyncio.Runner(loop_factory=uvloop.new_event_loop) as runner:
             runner.run(
                 main(
                     configuration=configuration,
                     url=url,
-                    data=None,
+                    data=data,
                     zero_rtt=zero_rtt,
                 )
             )
