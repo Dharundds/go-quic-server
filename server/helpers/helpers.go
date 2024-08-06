@@ -57,8 +57,8 @@ import (
 // 	}
 // }
 
-func GenerateTLSConfig() *tls.Config {
-	certFile, keyFile := "certificate.crt", "key.pem"
+func GenerateTLSConfig(certFile, keyFile string) *tls.Config {
+	// certFile, keyFile := "certificate.crt", "key.pem"
 	_, err := os.Stat(certFile)
 	log.Println(err)
 	// if os.IsNotExist(err) {
@@ -68,10 +68,15 @@ func GenerateTLSConfig() *tls.Config {
 	if err != nil {
 		log.Fatalf("Failed to load key pair: %v", err)
 	}
-	return &tls.Config{Certificates: []tls.Certificate{cert}}
+
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		NextProtos:   []string{"h3"},
+	}
+
 }
 
-func genCert(certFile, keyFile string) {
+func GenCert(certFile, keyFile string) {
 	cmd := exec.Command("openssl", "req", "-x509", "-newkey", "rsa:2048", "-keyout", keyFile, "-out", certFile, "-days", "365", "-nodes", "-subj", "/CN=localhost")
 	err := cmd.Run()
 	if err != nil {

@@ -1,12 +1,13 @@
 package main
 
 import (
-	"crypto/tls"
 	"io"
 	"log"
 	"net/http"
+	"os"
 
 	// "github.com/Dharundds/go-quic-server/helpers"
+	"github.com/Dharundds/go-quic-server/helpers"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 )
@@ -20,10 +21,16 @@ func main() {
 	// mux.HandleFunc("/", notFoundHandler)
 
 	log.Printf("Http/3 Server listening on %s", "localhost:5000")
+	certFile, keyFile := "certificate.crt", "key.pem"
+	_, err := os.Stat(certFile)
+	if os.IsNotExist(err) {
+		helpers.GenCert(certFile, keyFile)
+	}
+
 	server := http3.Server{
-		Addr:       "127.0.0.1:5000",
+		Addr:       ":5000",
 		Handler:    mux,
-		TLSConfig:  http3.ConfigureTLSConfig(&tls.Config{NextProtos: []string{"h3"}}),
+		TLSConfig:  http3.ConfigureTLSConfig(helpers.GenerateTLSConfig(certFile, keyFile)),
 		QUICConfig: &quic.Config{Allow0RTT: true},
 	}
 	// err := http3.ListenAndServeQUIC(
@@ -32,7 +39,8 @@ func main() {
 	// 	"key.pem",
 	// 	mux,
 	// )
-	log.Fatal(server.ListenAndServeTLS("certificate.crt", "key.pem"))
+
+	log.Fatal(server.ListenAndServe())
 
 	// if err != nil{
 	// 	log.Fatalf("Error in serving http3 server %v",err)
@@ -40,8 +48,7 @@ func main() {
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-
-	log.Printf("Got GET request ->  HTTP Version : %v , 0RTT : %v", r.Proto, !r.TLS.HandshakeComplete)
+	log.Printf("Got GET request ->  HTTP Version : %v , 0RTT : %v , IPaddr: %v", r.Proto, !r.TLS.HandshakeComplete, r.RemoteAddr)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("GET request received"))
 

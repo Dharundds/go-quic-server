@@ -146,8 +146,8 @@ def save_session_ticket(ticket):
     """
     log.info("New session ticket received")
     # if args.session_ticket:
-    #     with open(args.session_ticket, "wb") as fp:
-    #         pickle.dump(ticket, fp)
+    with open("./session_ticket", "wb") as fp:
+        pickle.dump(ticket, fp)
 
 
 async def send_request(
@@ -165,8 +165,10 @@ async def send_request(
         session_ticket_handler=save_session_ticket,
         wait_connected=not zero_rtt,
     ) as transport:
-        log.info(transport.wait_connected)
-        # log.info(f"Established QUIC connection with 0RTT {"Enabled" if not transport.wait_connected else "Disabled"}")
+
+        log.info("Starting to establish QUIC connection")
+
+        # log.info(f"Established QUIC connection with 0RTT {'Enabled' if not transport._connected else 'Disabled'}")
         async with httpx.AsyncClient(
             transport=cast(httpx.AsyncBaseTransport, transport)
         ) as client:
@@ -186,7 +188,7 @@ async def send_request(
         # print speed
         octets = len(response.content)
         log.info(
-            "Received %d bytes in %.1f s (%.3f Mbps)"
+            "Received %d bytes in %.5f s (%.3f Mbps)"
             % (octets, elapsed, octets * 8 / elapsed / 1000000)
         )
 
@@ -222,11 +224,10 @@ async def main(
         ]
     )
 
-    log.info("Starting to establish QUIC connection")
-
 
 if __name__ == "__main__":
     try:
+        log.add("./client.log")
         defaults: Optional[QuicConfiguration] = QuicConfiguration(is_client=True)
         configuration: Optional[QuicConfiguration] = QuicConfiguration(
             is_client=True,
@@ -239,13 +240,14 @@ if __name__ == "__main__":
             QuicProtocolVersion.VERSION_2,
             QuicProtocolVersion.VERSION_1,
         ]
-        url: str = "https://127.0.0.1:5000/"
+        url: str = "https://localhost:5000/"
         zero_rtt: bool = True
-        # try:
-        #     with open("", "rb") as fp:
-        #         configuration.session_ticket = pickle.load(fp)
-        # except FileNotFoundError:
-        #     pass
+        try:
+            with open("./session_ticket", "rb") as fp:
+                configuration.session_ticket = pickle.load(fp)
+                log.debug(f"Using existing session ticket for --> server_name : {configuration.session_ticket.server_name} , expiry_date : {configuration.session_ticket.not_valid_after}")
+        except FileNotFoundError:
+            pass
         with asyncio.Runner(loop_factory=uvloop.new_event_loop) as runner:
             runner.run(
                 main(
