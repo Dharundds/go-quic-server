@@ -1,6 +1,6 @@
 module github.com/Dharundds/go-quic-client
 
-go 1.22.3
+go 1.22.5
 
 require github.com/quic-go/quic-go v0.45.2
 
